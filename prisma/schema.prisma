@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EventStatus {
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ShirtSize {
+  XS
+  S
+  M
+  L
+  XL
+  XXL
+}
+
+enum DistanceUnit {
+  KM
+  MILE
+}
+
+model Athlete {
+  id               String    @id @default(uuid())
+  name             String
+  gender           Gender
+  birthDate        DateTime
+  phone            String    @unique
+  emergencyContact String
+  emergencyPhone   String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  registrations    Registration[]
+
+  @@index([phone])
+}
+
+model Event {
+  id          String       @id @default(uuid())
+  name        String
+  date        DateTime
+  location    String
+  description String?
+  status      EventStatus  @default(REGISTRATION_OPEN)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  categories  Category[]
+  timingPoints TimingPoint[]
+
+  @@index([date])
+  @@index([status])
+}
+
+model Category {
+  id              String         @id @default(uuid())
+  eventId         String
+  name            String
+  distance        Float
+  distanceUnit    DistanceUnit   @default(KM)
+  capacity        Int
+  price           Float
+  startTime       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  event           Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registrations   Registration[]
+
+  @@index([eventId])
+  @@unique([eventId, name])
+}
+
+model Registration {
+  id                 String         @id @default(uuid())
+  athleteId          String
+  categoryId         String
+  bibNumber          Int
+  shirtSize          ShirtSize
+  registeredAt       DateTime       @default(now())
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  athlete            Athlete        @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  category           Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  timingRecords      TimingRecord[]
+
+  @@index([athleteId])
+  @@index([categoryId])
+  @@unique([categoryId, bibNumber])
+}
+
+model TimingPoint {
+  id           String         @id @default(uuid())
+  eventId      String
+  name         String
+  distance     Float
+  distanceUnit DistanceUnit   @default(KM)
+  order        Int
+  isStart      Boolean        @default(false)
+  isFinish     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  event        Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  timingRecords TimingRecord[]
+
+  @@index([eventId])
+  @@unique([eventId, order])
+}
+
+model TimingRecord {
+  id             String         @id @default(uuid())
+  registrationId String
+  timingPointId  String
+  timestamp      DateTime
+  createdAt      DateTime       @default(now())
+  registration   Registration   @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  timingPoint    TimingPoint    @relation(fields: [timingPointId], references: [id], onDelete: Cascade)
+
+  @@index([registrationId])
+  @@index([timingPointId])
+  @@unique([registrationId, timingPointId])
+}
