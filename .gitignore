@@ -5,10 +5,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
-diagnostics.log
-
-# Diagnostic reports
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+.pnpm-debug.log*
 
 # Runtime data
 pids
@@ -16,48 +13,35 @@ pids
 *.seed
 *.pid.lock
 
-# Coverage directory used by tools like istanbul
-coverage
-*.lcov
-
-# nyc test coverage
-.nyc_output
-
 # Dependency directories
 node_modules/
 jspm_packages/
 web_modules/
 
-# Nuxt.js build / generate output
-.nuxt
-dist
+# TypeScript cache
+*.tsbuildinfo
 
-# Next.js build output
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# next.js build output
 .next
 out
 
-# SvelteKit
-.svelte-kit/
+# nuxt.js build output
+.nuxt
+dist
 
-# TypeScript
-*.tsbuildinfo
+# svelte-kit
+.svelte-kit
 
 # Environment files
 .env
 .env.*
 !.env.example
 
-# IDE
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-.idea
-*.swp
-*.swo
-*~
-
-# OS
+# macOS
 .DS_Store
-Thumbs.db
