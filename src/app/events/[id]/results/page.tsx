@@ -250,7 +250,7 @@ export default function Results({
                       状态
                     </th>
                     <th className="px-4 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      详情
+                      操作
                     </th>
                   </tr>
                 </thead>
@@ -298,12 +298,24 @@ export default function Results({
                         )}
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <button
-                          onClick={() => setSelectedResult(r)}
-                          className="text-indigo-600 hover:text-indigo-700 font-medium text-sm px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors"
-                        >
-                          查看分段
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => setSelectedResult(r)}
+                            className="text-indigo-600 hover:text-indigo-700 font-medium text-sm px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors"
+                          >
+                            查看分段
+                          </button>
+                          {r.finished && event && (
+                            <a
+                              href={`/events/${event.id}/certificates/${r.registrationId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg font-medium text-sm bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-sm transition-all"
+                            >
+                              🎖️ 证书
+                            </a>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -357,6 +369,25 @@ function SplitTimesModal({ result, onClose }: { result: Result; onClose: () => v
             </button>
           </div>
         </div>
+        {result.finished && (
+          <div className="px-6 py-3 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-amber-700">🎖️</span>
+              <span className="text-amber-800 font-medium">该选手已完赛，可下载电子完赛证书</span>
+            </div>
+            <button
+              onClick={() => {
+                const eventMatch = window.location.pathname.match(/\/events\/([^/]+)/)
+                if (eventMatch) {
+                  window.open(`/events/${eventMatch[1]}/certificates/${result.registrationId}`, '_blank')
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-sm bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-sm transition-all"
+            >
+              🎖️ 下载证书
+            </button>
+          </div>
+        )}
         <div className="p-6 overflow-y-auto">
           {result.splitTimes.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
