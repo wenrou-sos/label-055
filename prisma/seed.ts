@@ -1,7 +1,12 @@
 import { PrismaClient, EventStatus, Gender, ShirtSize } from '../src/generated/prisma/client'
 import type { Category, TimingPoint } from '../src/generated/prisma/client'
+import { PrismaLibSql } from '@prisma/adapter-libsql'
+import 'dotenv/config'
 
-const prisma = new PrismaClient()
+const adapter = new PrismaLibSql({
+  url: process.env.DATABASE_URL!,
+})
+const prisma = new PrismaClient({ adapter })
 
 const FIRST_NAMES = ['张', '李', '王', '刘', '陈', '杨', '赵', '黄', '周', '吴', '徐', '孙', '胡', '朱', '高', '林', '何', '郭', '马', '罗']
 const LAST_NAMES = ['伟', '芳', '娜', '敏', '静', '丽', '强', '磊', '军', '洋', '勇', '艳', '杰', '娟', '涛', '明', '超', '秀英', '霞', '平']

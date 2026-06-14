@@ -5,21 +5,26 @@ import { EventStatus } from '@/generated/prisma/client'
 import { notFound } from 'next/navigation'
 
 async function getEvent(id: string) {
-  return await prisma.event.findUnique({
-    where: { id },
-    include: {
-      categories: {
-        include: {
-          _count: {
-            select: { registrations: true },
+  try {
+    return await prisma.event.findUnique({
+      where: { id },
+      include: {
+        categories: {
+          include: {
+            _count: {
+              select: { registrations: true },
+            },
           },
         },
+        timingPoints: {
+          orderBy: { order: 'asc' },
+        },
       },
-      timingPoints: {
-        orderBy: { order: 'asc' },
-      },
-    },
-  })
+    })
+  } catch (error) {
+    console.error('获取赛事详情失败:', error)
+    return null
+  }
 }
 
 export default async function EventDetail({

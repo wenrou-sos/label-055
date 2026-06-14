@@ -3,7 +3,8 @@ import prisma from '@/lib/prisma'
 import type { TimingPoint } from '@/generated/prisma/client'
 
 export async function POST(request: Request) {
-  const body = await request.json()
+  try {
+    const body = await request.json()
 
   const { bibNumber, categoryId, timingPointId, timestamp } = body
 
@@ -98,37 +99,46 @@ export async function POST(request: Request) {
   })
 
   return NextResponse.json(record, { status: 201 })
+  } catch (error) {
+    console.error('录入计时数据失败:', error)
+    return NextResponse.json({ error: '录入计时数据失败' }, { status: 500 })
+  }
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const eventId = searchParams.get('eventId')
-  const timingPointId = searchParams.get('timingPointId')
+  try {
+    const { searchParams } = new URL(request.url)
+    const eventId = searchParams.get('eventId')
+    const timingPointId = searchParams.get('timingPointId')
 
-  if (!eventId) {
-    return NextResponse.json(
-      { error: 'eventId 是必填参数' },
-      { status: 400 }
-    )
-  }
+    if (!eventId) {
+      return NextResponse.json(
+        { error: 'eventId 是必填参数' },
+        { status: 400 }
+      )
+    }
 
-  const where = timingPointId
-    ? { timingPointId }
-    : { timingPoint: { eventId } }
+    const where = timingPointId
+      ? { timingPointId }
+      : { timingPoint: { eventId } }
 
-  const records = await prisma.timingRecord.findMany({
-    where,
-    include: {
-      registration: {
-        include: {
-          athlete: true,
-          category: true,
+    const records = await prisma.timingRecord.findMany({
+      where,
+      include: {
+        registration: {
+          include: {
+            athlete: true,
+            category: true,
+          },
         },
+        timingPoint: true,
       },
-      timingPoint: true,
-    },
-    orderBy: { timestamp: 'asc' },
-  })
+      orderBy: { timestamp: 'asc' },
+    })
 
-  return NextResponse.json(records)
+    return NextResponse.json(records)
+  } catch (error) {
+    console.error('获取计时记录失败:', error)
+    return NextResponse.json({ error: '获取计时记录失败' }, { status: 500 })
+  }
 }

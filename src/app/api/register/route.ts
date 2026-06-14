@@ -4,20 +4,21 @@ import { getNextBibNumber } from '@/lib/raceService'
 import { EventStatus } from '@/generated/prisma/client'
 
 export async function POST(request: Request) {
-  const body = await request.json()
+  try {
+    const body = await request.json()
 
-  const {
-    name,
-    gender,
-    birthDate,
-    phone,
-    emergencyContact,
-    emergencyPhone,
-    categoryId,
-    shirtSize,
-  } = body
+    const {
+      name,
+      gender,
+      birthDate,
+      phone,
+      emergencyContact,
+      emergencyPhone,
+      categoryId,
+      shirtSize,
+    } = body
 
-  const category = await prisma.category.findUnique({
+    const category = await prisma.category.findUnique({
     where: { id: categoryId },
     include: {
       event: true,
@@ -98,4 +99,8 @@ export async function POST(request: Request) {
   })
 
   return NextResponse.json(registration, { status: 201 })
+  } catch (error) {
+    console.error('报名失败:', error)
+    return NextResponse.json({ error: '报名失败，请稍后重试' }, { status: 500 })
+  }
 }

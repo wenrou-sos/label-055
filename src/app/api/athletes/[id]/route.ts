@@ -6,17 +6,22 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
+  try {
+    const { id } = await params
 
-  const athlete = await prisma.athlete.findUnique({
-    where: { id },
-  })
+    const athlete = await prisma.athlete.findUnique({
+      where: { id },
+    })
 
-  if (!athlete) {
-    return NextResponse.json({ error: '选手不存在' }, { status: 404 })
+    if (!athlete) {
+      return NextResponse.json({ error: '选手不存在' }, { status: 404 })
+    }
+
+    const results = await getAthleteResults(id)
+
+    return NextResponse.json({ athlete, results })
+  } catch (error) {
+    console.error('获取选手详情失败:', error)
+    return NextResponse.json({ error: '获取选手详情失败' }, { status: 500 })
   }
-
-  const results = await getAthleteResults(id)
-
-  return NextResponse.json({ athlete, results })
 }

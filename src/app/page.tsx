@@ -4,18 +4,23 @@ import { formatDate, getStatusText, getStatusColor } from '@/lib/utils'
 import { EventStatus } from '@/generated/prisma/client'
 
 async function getEvents() {
-  return await prisma.event.findMany({
-    include: {
-      categories: {
-        include: {
-          _count: {
-            select: { registrations: true },
+  try {
+    return await prisma.event.findMany({
+      include: {
+        categories: {
+          include: {
+            _count: {
+              select: { registrations: true },
+            },
           },
         },
       },
-    },
-    orderBy: { date: 'desc' },
-  })
+      orderBy: { date: 'desc' },
+    })
+  } catch (error) {
+    console.error('获取赛事列表失败:', error)
+    return []
+  }
 }
 
 export default async function Home() {
