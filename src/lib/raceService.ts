@@ -58,7 +58,7 @@ export function calculateSplitTimes(
       : 0
 
     const distance = record.timingPoint.distance
-    const pace = distance > 0 && splitTime > 0 ? splitTime / (distance / 1000) : 0
+    const pace = distance > 0 && splitTime > 0 ? splitTime / distance : 0
 
     splitTimes.push({
       timingPointId: record.timingPointId,
@@ -184,10 +184,9 @@ export async function calculateRaceResults(
     result.overallRank = index + 1
   })
 
-  if (categoryId) {
-    const categoryFinished = finishedResults.filter(
-      (r) => r.categoryId === categoryId
-    )
+  const categoryIds = [...new Set(results.map((r) => r.categoryId))]
+  for (const catId of categoryIds) {
+    const categoryFinished = finishedResults.filter((r) => r.categoryId === catId)
     categoryFinished.forEach((result, index) => {
       result.categoryRank = index + 1
     })

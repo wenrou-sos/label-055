@@ -51,7 +51,7 @@ export default function TimingEntry({
   const loadRecords = async (eid: string) => {
     const res = await fetch(`/api/timing?eventId=${eid}`)
     const data = await res.json()
-    setRecords(Array.isArray(data) ? data.slice().reverse().slice(0, 50) : [])
+    setRecords(Array.isArray(data) ? data : [])
   }
 
   useEffect(() => {
@@ -86,6 +86,7 @@ export default function TimingEntry({
         body: JSON.stringify({
           bibNumber: parseInt(bibNumber),
           timingPointId,
+          eventId,
           timestamp,
         }),
       })

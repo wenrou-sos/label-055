@@ -1,57 +1,65 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import type { TimingPoint } from '@/generated/prisma/client'
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
 
-  const { bibNumber, categoryId, timingPointId, timestamp } = body
+    const { bibNumber, categoryId, timingPointId, eventId, timestamp } = body
 
-  if (!bibNumber || !timingPointId) {
-    return NextResponse.json(
-      { error: '号码布、计时点不能为空' },
-      { status: 400 }
-    )
-  }
+    if (!bibNumber || !timingPointId) {
+      return NextResponse.json(
+        { error: '号码布、计时点不能为空' },
+        { status: 400 }
+      )
+    }
 
-  let registration
+    let registration
 
-  if (categoryId) {
-    registration = await prisma.registration.findUnique({
-      where: {
-        categoryId_bibNumber: {
-          categoryId,
-          bibNumber: parseInt(bibNumber),
-        },
-      },
-      include: {
-        category: true,
-      },
-    })
-  } else {
-    const registrations = await prisma.registration.findMany({
-      where: { bibNumber: parseInt(bibNumber) },
-      include: {
-        category: {
-          include: {
-            event: true,
-            timingPoints: true,
+    if (categoryId) {
+      registration = await prisma.registration.findUnique({
+        where: {
+          categoryId_bibNumber: {
+            categoryId,
+            bibNumber: parseInt(bibNumber),
           },
         },
-      },
-    })
+        include: {
+          category: true,
+        },
+      })
+    } else if (eventId) {
+      registration = await prisma.registration.findFirst({
+        where: {
+          bibNumber: parseInt(bibNumber),
+          category: { eventId },
+        },
+        include: {
+          category: true,
+        },
+      })
+    } else {
+      const registrations = await prisma.registration.findMany({
+        where: { bibNumber: parseInt(bibNumber) },
+        include: {
+          category: {
+            include: {
+              event: {
+                include: { timingPoints: true },
+              },
+            },
+          },
+        },
+      })
 
-    for (const reg of registrations) {
-      const hasTimingPoint = reg.category.event.timingPoints.some(
-        (tp: TimingPoint) => tp.id === timingPointId
-      )
-      if (hasTimingPoint) {
-        registration = reg
-        break
+      for (const reg of registrations) {
+        const timingPoints = reg.category?.event?.timingPoints
+        if (timingPoints && timingPoints.some((tp) => tp.id === timingPointId)) {
+          registration = reg
+          break
+        }
       }
     }
-  }
 
   if (!registration) {
     return NextResponse.json({ error: '未找到该报名记录' }, { status: 404 })
@@ -126,14 +134,22 @@ export async function GET(request: Request) {
       where,
       include: {
         registration: {
-          include: {
-            athlete: true,
-            category: true,
+          select: {
+            bibNumber: true,
+            athlete: {
+              select: { name: true },
+            },
+            category: {
+              select: { name: true },
+            },
           },
         },
-        timingPoint: true,
+        timingPoint: {
+          select: { name: true },
+        },
       },
-      orderBy: { timestamp: 'asc' },
+      orderBy: { timestamp: 'desc' },
+      take: 50,
     })
 
     return NextResponse.json(records)

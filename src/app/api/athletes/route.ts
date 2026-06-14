@@ -15,7 +15,6 @@ export async function GET(request: Request) {
       where = {
         name: {
           contains: name,
-          mode: 'insensitive',
         },
       }
     }
