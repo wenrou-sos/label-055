@@ -48,7 +48,7 @@ export default function Results({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const unwrappedParams = Promise.resolve(params)
+  const [eventId, setEventId] = useState<string | null>(null)
   const [event, setEvent] = useState<Event | null>(null)
   const [results, setResults] = useState<Result[]>([])
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
@@ -57,11 +57,11 @@ export default function Results({
   const [loading, setLoading] = useState(true)
   const [selectedResult, setSelectedResult] = useState<Result | null>(null)
 
-  const loadResults = async (eventId: string, catId?: string) => {
+  const loadResults = async (evId: string, catId?: string) => {
     setLoading(true)
     const url = catId
-      ? `/api/events/${eventId}/results?categoryId=${catId}`
-      : `/api/events/${eventId}/results`
+      ? `/api/events/${evId}/results?categoryId=${catId}`
+      : `/api/events/${evId}/results`
     const res = await fetch(url)
     const data = await res.json()
     setResults(data)
@@ -69,15 +69,26 @@ export default function Results({
   }
 
   useEffect(() => {
+    let cancelled = false
+    params.then((p) => {
+      if (!cancelled) setEventId(p.id)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [params])
+
+  useEffect(() => {
+    if (!eventId) return
+
     const init = async () => {
-      const p = await unwrappedParams
-      const res = await fetch(`/api/events/${p.id}`)
+      const res = await fetch(`/api/events/${eventId}`)
       const eventData = await res.json()
       setEvent(eventData)
-      loadResults(p.id)
+      loadResults(eventId)
     }
     init()
-  }, [unwrappedParams])
+  }, [eventId])
 
   const handleCategoryChange = (catId: string) => {
     const newCatId = catId === selectedCategoryId ? null : catId
