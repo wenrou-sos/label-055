@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import prisma from '@/lib/prisma'
-import { formatDate, getStatusText } from '@/lib/utils'
+import { formatDate, getStatusText, getGenderText } from '@/lib/utils'
 import { EventStatus } from '@/generated/prisma/client'
 import { notFound } from 'next/navigation'
 import StatusControl from './StatusControl'
@@ -12,6 +12,14 @@ async function getEvent(id: string) {
       include: {
         categories: {
           include: {
+            registrations: {
+              select: {
+                shirtSize: true,
+                athlete: {
+                  select: { gender: true },
+                },
+              },
+            },
             _count: {
               select: { registrations: true },
             },
@@ -48,6 +56,22 @@ export default async function EventDetail({
     (sum, cat) => sum + cat.capacity,
     0
   )
+
+  const allRegistrations = event.categories.flatMap((cat) => cat.registrations)
+
+  const genderCounts = { MALE: 0, FEMALE: 0, OTHER: 0 }
+  for (const reg of allRegistrations) {
+    const g = reg.athlete.gender as keyof typeof genderCounts
+    if (g in genderCounts) genderCounts[g]++
+  }
+
+  const shirtSizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const
+  const shirtSizeCounts: Record<string, number> = {}
+  for (const size of shirtSizeOrder) shirtSizeCounts[size] = 0
+  for (const reg of allRegistrations) {
+    const s = reg.shirtSize as string
+    if (s in shirtSizeCounts) shirtSizeCounts[s]++
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-8">
@@ -113,6 +137,160 @@ export default async function EventDetail({
             {event.description && (
               <p className="mt-4 text-white/80 leading-relaxed">{event.description}</p>
             )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+              <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <span>📊</span> 各组报名进度
+              </h2>
+            </div>
+            <div className="p-5 space-y-4">
+              {event.categories.map((cat) => {
+                const percent = cat.capacity > 0
+                  ? Math.round((cat._count.registrations / cat.capacity) * 100)
+                  : 0
+                const isFull = cat._count.registrations >= cat.capacity
+
+                return (
+                  <div key={cat.id}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm font-medium text-slate-700">{cat.name}</span>
+                      <span className={`text-sm font-semibold ${isFull ? 'text-red-600' : 'text-slate-900'}`}>
+                        {cat._count.registrations}/{cat.capacity}
+                      </span>
+                    </div>
+                    <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          isFull
+                            ? 'bg-gradient-to-r from-red-500 to-red-600'
+                            : percent >= 80
+                            ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                            : 'bg-gradient-to-r from-indigo-500 to-purple-500'
+                        }`}
+                        style={{ width: `${Math.min(percent, 100)}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-slate-400">{percent}%</p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+              <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <span>👥</span> 男女比例
+              </h2>
+            </div>
+            <div className="p-5">
+              {totalRegistrations === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-6">暂无报名数据</p>
+              ) : (
+                <>
+                  <div className="flex h-8 rounded-lg overflow-hidden mb-5">
+                    {genderCounts.MALE > 0 && (
+                      <div
+                        className="bg-gradient-to-r from-blue-400 to-blue-500 flex items-center justify-center"
+                        style={{ width: `${(genderCounts.MALE / totalRegistrations) * 100}%` }}
+                      >
+                        {genderCounts.MALE / totalRegistrations > 0.15 && (
+                          <span className="text-xs font-semibold text-white">
+                            {Math.round((genderCounts.MALE / totalRegistrations) * 100)}%
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {genderCounts.FEMALE > 0 && (
+                      <div
+                        className="bg-gradient-to-r from-pink-400 to-pink-500 flex items-center justify-center"
+                        style={{ width: `${(genderCounts.FEMALE / totalRegistrations) * 100}%` }}
+                      >
+                        {genderCounts.FEMALE / totalRegistrations > 0.15 && (
+                          <span className="text-xs font-semibold text-white">
+                            {Math.round((genderCounts.FEMALE / totalRegistrations) * 100)}%
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {genderCounts.OTHER > 0 && (
+                      <div
+                        className="bg-gradient-to-r from-teal-400 to-teal-500 flex items-center justify-center"
+                        style={{ width: `${(genderCounts.OTHER / totalRegistrations) * 100}%` }}
+                      >
+                        {genderCounts.OTHER / totalRegistrations > 0.15 && (
+                          <span className="text-xs font-semibold text-white">
+                            {Math.round((genderCounts.OTHER / totalRegistrations) * 100)}%
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-sm bg-blue-500" />
+                        <span className="text-sm text-slate-600">{getGenderText('MALE')}</span>
+                      </div>
+                      <span className="text-sm font-semibold text-slate-900">{genderCounts.MALE} 人</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-sm bg-pink-500" />
+                        <span className="text-sm text-slate-600">{getGenderText('FEMALE')}</span>
+                      </div>
+                      <span className="text-sm font-semibold text-slate-900">{genderCounts.FEMALE} 人</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-sm bg-teal-500" />
+                        <span className="text-sm text-slate-600">{getGenderText('OTHER')}</span>
+                      </div>
+                      <span className="text-sm font-semibold text-slate-900">{genderCounts.OTHER} 人</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+              <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <span>👕</span> 衣服尺码分布
+              </h2>
+            </div>
+            <div className="p-5">
+              {totalRegistrations === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-6">暂无报名数据</p>
+              ) : (
+                <div className="space-y-3">
+                  {shirtSizeOrder.map((size) => {
+                    const count = shirtSizeCounts[size]
+                    const maxCount = Math.max(...Object.values(shirtSizeCounts), 1)
+
+                    return (
+                      <div key={size}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium text-slate-700">{size}</span>
+                          <span className="text-sm text-slate-500">{count} 人</span>
+                        </div>
+                        <div className="h-4 bg-slate-100 rounded overflow-hidden">
+                          <div
+                            className="h-full rounded bg-gradient-to-r from-violet-400 to-violet-500 transition-all"
+                            style={{ width: `${(count / maxCount) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
