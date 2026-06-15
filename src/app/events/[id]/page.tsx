@@ -12,14 +12,6 @@ async function getEvent(id: string) {
       include: {
         categories: {
           include: {
-            registrations: {
-              select: {
-                shirtSize: true,
-                athlete: {
-                  select: { gender: true },
-                },
-              },
-            },
             _count: {
               select: { registrations: true },
             },
@@ -36,6 +28,41 @@ async function getEvent(id: string) {
   }
 }
 
+async function getEventStats(eventId: string) {
+  try {
+    const registrations = await prisma.registration.findMany({
+      where: { category: { eventId } },
+      select: {
+        shirtSize: true,
+        categoryId: true,
+        athlete: { select: { gender: true } },
+      },
+    })
+
+    const genderCounts = { MALE: 0, FEMALE: 0, OTHER: 0 }
+    const shirtSizeCounts: Record<string, number> = {}
+    const shirtSizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+    for (const size of shirtSizeOrder) shirtSizeCounts[size] = 0
+
+    for (const reg of registrations) {
+      const g = reg.athlete.gender as keyof typeof genderCounts
+      if (g in genderCounts) genderCounts[g]++
+      const s = reg.shirtSize as string
+      if (s in shirtSizeCounts) shirtSizeCounts[s]++
+    }
+
+    return {
+      total: registrations.length,
+      genderCounts,
+      shirtSizeCounts,
+      shirtSizeOrder,
+    }
+  } catch (error) {
+    console.error('获取赛事统计失败:', error)
+    return null
+  }
+}
+
 export default async function EventDetail({
   params,
 }: {
@@ -43,6 +70,7 @@ export default async function EventDetail({
 }) {
   const { id } = await params
   const event = await getEvent(id)
+  const stats = await getEventStats(id)
 
   if (!event) {
     notFound()
@@ -56,22 +84,6 @@ export default async function EventDetail({
     (sum, cat) => sum + cat.capacity,
     0
   )
-
-  const allRegistrations = event.categories.flatMap((cat) => cat.registrations)
-
-  const genderCounts = { MALE: 0, FEMALE: 0, OTHER: 0 }
-  for (const reg of allRegistrations) {
-    const g = reg.athlete.gender as keyof typeof genderCounts
-    if (g in genderCounts) genderCounts[g]++
-  }
-
-  const shirtSizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const
-  const shirtSizeCounts: Record<string, number> = {}
-  for (const size of shirtSizeOrder) shirtSizeCounts[size] = 0
-  for (const reg of allRegistrations) {
-    const s = reg.shirtSize as string
-    if (s in shirtSizeCounts) shirtSizeCounts[s]++
-  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-8">
@@ -188,43 +200,45 @@ export default async function EventDetail({
               </h2>
             </div>
             <div className="p-5">
-              {totalRegistrations === 0 ? (
+              {!stats ? (
+                <p className="text-sm text-slate-400 text-center py-6">统计数据加载中...</p>
+              ) : stats.total === 0 ? (
                 <p className="text-sm text-slate-400 text-center py-6">暂无报名数据</p>
               ) : (
                 <>
                   <div className="flex h-8 rounded-lg overflow-hidden mb-5">
-                    {genderCounts.MALE > 0 && (
+                    {stats.genderCounts.MALE > 0 && (
                       <div
                         className="bg-gradient-to-r from-blue-400 to-blue-500 flex items-center justify-center"
-                        style={{ width: `${(genderCounts.MALE / totalRegistrations) * 100}%` }}
+                        style={{ width: `${(stats.genderCounts.MALE / stats.total) * 100}%` }}
                       >
-                        {genderCounts.MALE / totalRegistrations > 0.15 && (
+                        {stats.genderCounts.MALE / stats.total > 0.15 && (
                           <span className="text-xs font-semibold text-white">
-                            {Math.round((genderCounts.MALE / totalRegistrations) * 100)}%
+                            {Math.round((stats.genderCounts.MALE / stats.total) * 100)}%
                           </span>
                         )}
                       </div>
                     )}
-                    {genderCounts.FEMALE > 0 && (
+                    {stats.genderCounts.FEMALE > 0 && (
                       <div
                         className="bg-gradient-to-r from-pink-400 to-pink-500 flex items-center justify-center"
-                        style={{ width: `${(genderCounts.FEMALE / totalRegistrations) * 100}%` }}
+                        style={{ width: `${(stats.genderCounts.FEMALE / stats.total) * 100}%` }}
                       >
-                        {genderCounts.FEMALE / totalRegistrations > 0.15 && (
+                        {stats.genderCounts.FEMALE / stats.total > 0.15 && (
                           <span className="text-xs font-semibold text-white">
-                            {Math.round((genderCounts.FEMALE / totalRegistrations) * 100)}%
+                            {Math.round((stats.genderCounts.FEMALE / stats.total) * 100)}%
                           </span>
                         )}
                       </div>
                     )}
-                    {genderCounts.OTHER > 0 && (
+                    {stats.genderCounts.OTHER > 0 && (
                       <div
                         className="bg-gradient-to-r from-teal-400 to-teal-500 flex items-center justify-center"
-                        style={{ width: `${(genderCounts.OTHER / totalRegistrations) * 100}%` }}
+                        style={{ width: `${(stats.genderCounts.OTHER / stats.total) * 100}%` }}
                       >
-                        {genderCounts.OTHER / totalRegistrations > 0.15 && (
+                        {stats.genderCounts.OTHER / stats.total > 0.15 && (
                           <span className="text-xs font-semibold text-white">
-                            {Math.round((genderCounts.OTHER / totalRegistrations) * 100)}%
+                            {Math.round((stats.genderCounts.OTHER / stats.total) * 100)}%
                           </span>
                         )}
                       </div>
@@ -236,21 +250,21 @@ export default async function EventDetail({
                         <div className="w-3 h-3 rounded-sm bg-blue-500" />
                         <span className="text-sm text-slate-600">{getGenderText('MALE')}</span>
                       </div>
-                      <span className="text-sm font-semibold text-slate-900">{genderCounts.MALE} 人</span>
+                      <span className="text-sm font-semibold text-slate-900">{stats.genderCounts.MALE} 人</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-sm bg-pink-500" />
                         <span className="text-sm text-slate-600">{getGenderText('FEMALE')}</span>
                       </div>
-                      <span className="text-sm font-semibold text-slate-900">{genderCounts.FEMALE} 人</span>
+                      <span className="text-sm font-semibold text-slate-900">{stats.genderCounts.FEMALE} 人</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-sm bg-teal-500" />
                         <span className="text-sm text-slate-600">{getGenderText('OTHER')}</span>
                       </div>
-                      <span className="text-sm font-semibold text-slate-900">{genderCounts.OTHER} 人</span>
+                      <span className="text-sm font-semibold text-slate-900">{stats.genderCounts.OTHER} 人</span>
                     </div>
                   </div>
                 </>
@@ -265,13 +279,15 @@ export default async function EventDetail({
               </h2>
             </div>
             <div className="p-5">
-              {totalRegistrations === 0 ? (
+              {!stats ? (
+                <p className="text-sm text-slate-400 text-center py-6">统计数据加载中...</p>
+              ) : stats.total === 0 ? (
                 <p className="text-sm text-slate-400 text-center py-6">暂无报名数据</p>
               ) : (
                 <div className="space-y-3">
-                  {shirtSizeOrder.map((size) => {
-                    const count = shirtSizeCounts[size]
-                    const maxCount = Math.max(...Object.values(shirtSizeCounts), 1)
+                  {stats.shirtSizeOrder.map((size) => {
+                    const count = stats.shirtSizeCounts[size] || 0
+                    const maxCount = Math.max(...Object.values(stats.shirtSizeCounts), 1)
 
                     return (
                       <div key={size}>
